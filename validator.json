@@ -1,0 +1,70 @@
+"validator": {
+  "type": "object",
+  "required": ["type"],
+  "additionalProperties": true,
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "email",
+        "regex",
+        "numeric",
+        "text",
+        "expression",
+        "answercount",
+        "custom"
+      ]
+    },
+    "text": { "type": "string" },
+
+    "regex": { "type": "string" },
+
+    "minValue": { "type": "number" },
+    "maxValue": { "type": "number" },
+
+    "minLength": { "type": "number" },
+    "maxLength": { "type": "number" },
+
+    "expression": { "type": "string" },
+
+    "minCount": { "type": "number" },
+    "maxCount": { "type": "number" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "regex" } } },
+      "then": { "required": ["regex"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "numeric" } } },
+      "then": {
+        "anyOf": [
+          { "required": ["minValue"] },
+          { "required": ["maxValue"] }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "text" } } },
+      "then": {
+        "anyOf": [
+          { "required": ["minLength"] },
+          { "required": ["maxLength"] }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "expression" } } },
+      "then": { "required": ["expression"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "answercount" } } },
+      "then": {
+        "anyOf": [
+          { "required": ["minCount"] },
+          { "required": ["maxCount"] }
+        ]
+      }
+    }
+  ]
+}
