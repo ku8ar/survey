@@ -1,0 +1,7 @@
+Survey expression rules:
+- radiogroup, dropdown → SINGLE SCALAR value → use equality: {x} = 'value'
+- checkbox, tagbox → ARRAY value (multi-select) → NEVER use equality → use contains({x}, 'value') or {x} contains 'value'
+- boolean → BOOLEAN value → use true/false logic: {x} = true, not {x}
+- number → NUMBER value → use numeric comparison: >, >=, <, <=
+- text → STRING value → use string comparison or functions: != '', length({x}) > 0
+- panel / static elements → NO VALUE → must not be referenced in expressions
