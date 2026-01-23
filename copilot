@@ -1,7 +1,23 @@
-Survey expression rules:
-- radiogroup, dropdown → SINGLE SCALAR value → use equality: {x} = 'value'
-- checkbox, tagbox → ARRAY value (multi-select) → NEVER use equality → use contains({x}, 'value') or {x} contains 'value'
-- boolean → BOOLEAN value → use true/false logic: {x} = true, not {x}
-- number → NUMBER value → use numeric comparison: >, >=, <, <=
-- text → STRING value → use string comparison or functions: != '', length({x}) > 0
-- panel / static elements → NO VALUE → must not be referenced in expressions
+SurveyJS expression grammar (use ONLY this, do not invent syntax):
+
+- Variables: always referenced as {name}
+- String literals: use double quotes only: "text"
+- Numbers: 123, 12.5
+- Booleans: true / false
+- Null: empty / not set may behave as null
+
+Operators:
+- Equality: = , !=
+- Comparisons: > , >= , < , <=
+- Boolean logic: and , or , not
+- Parentheses for grouping: ( ... )
+- Array membership (checkbox/tagbox): {x} contains "value"
+  (checkbox/tagbox values are arrays; never use {x} = "value" for them)
+
+Type semantics:
+- dropdown, radiogroup → scalar value → use = / !=
+- checkbox, tagbox → array value → use contains
+- boolean → boolean value → use true/false with = or not
+- panel/static → no value → never reference in expressions
+
+Do not use function-call syntax like contains({x}, "value"). Do not use single quotes. Do not mix syntaxes.
