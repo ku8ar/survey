@@ -6,8 +6,6 @@
   "additionalProperties": false,
   "oneOf": [ { "required": [ "pages" ] }, { "required": [ "elements" ] } ],
   "properties": {
-    "$schema": { "type": "string", "format": "uri" },
-    "description": { "type": "string" },
     "title": { "type": "string" },
     "readOnly": { "type": "boolean" },
     "checkErrorsMode": {
@@ -22,11 +20,16 @@
     },
     "calculatedValues": { "type": "array", "items": { "$ref": "#/$defs/calculatedValue" } },
     "triggers": { "type": "array", "items": { "$ref": "#/$defs/trigger" } },
+    "showQuestionNumbers": { "type": "string", "enum": [ "on", "off", "onPage" ] },
     "elements": { "type": "array", "items": { "$ref": "#/$defs/element" } },
     "pages": { "type": "array", "items": { "$ref": "#/$defs/page" } }
   },
   "$defs": {
-    "expression": { "type": "string" },
+    "expression": {
+      "type": "string",
+      "format": "surveyjs-expression",
+      "pattern": "(^\\s*\\{[^\\}]+\\}.*$)|(^.*\\b(iif|and|or|not|empty|notempty)\\b.*$)"
+    },
     "xProps": { "type": "object", "additionalProperties": true },
     "variable": {
       "type": "object",
@@ -53,7 +56,7 @@
       "additionalProperties": true,
       "required": [ "type" ],
       "properties": {
-        "type": { "type": "string" },
+        "type": { "type": "string", "enum": [ "setvalue", "copyvalue", "runexpression", "skip" ] },
         "expression": { "$ref": "#/$defs/expression" },
         "name": { "type": "string" },
         "operator": { "type": "string" },
@@ -196,22 +199,7 @@
         "properties": { "type": { "const": "multipletext" }, "items": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": true,
-            "required": [ "name" ],
-            "properties": {
-              "name": { "type": "string" },
-              "title": { "type": "string" },
-              "placeholder": { "type": "string" },
-              "inputType": { "type": "string", "enum": [ "text", "email", "tel", "url", "number", "password", "date", "datetime-local" ] },
-              "isRequired": { "type": "boolean" },
-              "requiredIf": { "$ref": "#/$defs/expression" },
-              "visibleIf": { "$ref": "#/$defs/expression" },
-              "readOnlyIf": { "$ref": "#/$defs/expression" },
-              "x-props": { "$ref": "#/$defs/xProps" }
-            }
-          }
+          "items": { "$ref": "#/$defs/multipleTextItem" }
         } }
       } ] },
     "panel": { "allOf": [ { "$ref": "#/$defs/baseElement" }, {
@@ -235,6 +223,22 @@
         "visible": { "type": "boolean" },
         "visibleIf": { "$ref": "#/$defs/expression" },
         "elements": { "type": "array", "items": { "$ref": "#/$defs/element" } }
+      }
+    },
+    "multipleTextItem": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [ "name" ],
+      "properties": {
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "inputType": { "type": "string", "enum": [ "text", "email", "tel", "url", "number", "password", "date", "datetime-local" ] },
+        "isRequired": { "type": "boolean" },
+        "requiredIf": { "$ref": "#/$defs/expression" },
+        "visibleIf": { "$ref": "#/$defs/expression" },
+        "readOnlyIf": { "$ref": "#/$defs/expression" },
+        "x-props": { "$ref": "#/$defs/xProps" }
       }
     }
   }
