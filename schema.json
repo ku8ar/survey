@@ -4,106 +4,72 @@
   "title": "SurveyJS Core JSON (headless-friendly) — minimized (fixed)",
   "type": "object",
   "additionalProperties": false,
-  "oneOf": [
-    {
-      "required": ["pages"]
-    },
-    {
-      "required": ["elements"]
-    }
-  ],
+  "oneOf": [ { "required": [ "pages" ] }, { "required": [ "elements" ] } ],
   "properties": {
-    "title": {
-      "type": "string"
-    },
-    "description": {
-      "type": "string"
-    },
-    "readOnly": {
-      "description": "Survey-level read-only mode. If true, all questions are treated as readOnly (non-interactive).",
-      "type": "boolean"
-    },
+    "title": { "type": "string" },
+    "readOnly": { "type": "boolean" },
     "checkErrorsMode": {
-      "description": "When to check validation errors (SurveyJS enum). onNextPage: validate before navigating to next page / completing. onValueChanged: validate on value change/blur. onComplete: validate only when completing; if previous pages contain errors, engine navigates to first error page.",
       "type": "string",
-      "enum": ["onNextPage", "onValueChanged", "onComplete"],
+      "enum": [ "onNextPage", "onValueChanged", "onComplete" ],
       "default": "onNextPage"
     },
     "clearInvisibleValues": {
-      "description": "How to clear values for invisible questions/panels/pages (SurveyJS enum). onComplete: clear invisible values only when completing. onHidden: clear when question becomes invisible; if invisible initially, it is cleared on complete. onHiddenContainer: like onHidden + also clears when parent page/panel becomes invisible; if invisible initially, cleared on complete. none: never clear.",
       "type": "string",
-      "enum": ["onComplete", "onHidden", "onHiddenContainer", "none"],
+      "enum": [ "onComplete", "onHidden", "onHiddenContainer", "none" ],
       "default": "onComplete"
     },
     "calculatedValues": {
-      "description": "Calculated values (SurveyJS): named expressions recalculated when dependencies change. If includeIntoResult=true, engine includes them in final result.",
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/calculatedValue"
-      }
+      "items": { "$ref": "#/$defs/calculatedValue" }
     },
     "triggers": {
-      "description": "Survey triggers (set value, complete, run expression, etc.).",
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/trigger"
-      }
+      "items": { "$ref": "#/$defs/trigger" }
     },
     "showQuestionNumbers": {
       "type": "string",
-      "enum": ["on", "off", "onPage"]
+      "enum": [ "on", "off", "onPage" ]
     },
     "elements": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/element"
-      }
+      "items": { "$ref": "#/$defs/element" }
     },
     "pages": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/page"
-      }
+      "items": { "$ref": "#/$defs/page" }
     }
   },
   "$defs": {
-    "expression": {
-      "type": "string",
-      "description": "SurveyJS expression, e.g. {a} = 1 and {b} notempty"
-    },
+    "expression": { "type": "string" },
     "xProps": {
       "type": "object",
-      "description": "Custom UI props for renderer",
       "additionalProperties": true
     },
     "variable": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["name"],
+      "required": [ "name" ],
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1
         },
-        "value": {},
-        "expression": {
-          "$ref": "#/$defs/expression"
-        }
+        "value": {
+
+        },
+        "expression": { "$ref": "#/$defs/expression" }
       }
     },
     "calculatedValue": {
-      "description": "SurveyJS CalculatedValue: defines a named expression stored in variables space; can be included into result.",
       "type": "object",
       "additionalProperties": true,
-      "required": ["name", "expression"],
+      "required": [ "name", "expression" ],
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1
         },
-        "expression": {
-          "$ref": "#/$defs/expression"
-        },
+        "expression": { "$ref": "#/$defs/expression" },
         "includeIntoResult": {
           "type": "boolean",
           "default": false
@@ -113,122 +79,63 @@
     "trigger": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["type"],
+      "required": [ "type" ],
       "properties": {
-        "type": {
-          "type": "string"
+        "type": { "type": "string" },
+        "expression": { "$ref": "#/$defs/expression" },
+        "name": { "type": "string" },
+        "operator": { "type": "string" },
+        "value": {
+
         },
-        "expression": {
-          "$ref": "#/$defs/expression"
+        "setToName": { "type": "string" },
+        "setValue": {
+
         },
-        "name": {
-          "type": "string"
-        },
-        "operator": {
-          "type": "string"
-        },
-        "value": {},
-        "setToName": {
-          "type": "string"
-        },
-        "setValue": {},
-        "setValueExpression": {
-          "$ref": "#/$defs/expression"
-        },
-        "fromName": {
-          "type": "string"
-        },
-        "gotoName": {
-          "type": "string"
-        },
-        "isVariable": {
-          "type": "boolean"
-        }
+        "setValueExpression": { "$ref": "#/$defs/expression" },
+        "fromName": { "type": "string" },
+        "gotoName": { "type": "string" },
+        "isVariable": { "type": "boolean" }
       },
-      "allOf": [
-        {
+      "allOf": [ {
           "if": {
-            "properties": {
-              "type": {
-                "const": "setvalue"
-              }
-            },
-            "required": ["type"]
+            "properties": { "type": { "const": "setvalue" } },
+            "required": [ "type" ]
           },
           "then": {
-            "required": ["setToName"],
-            "anyOf": [
-              {
-                "required": ["setValue"]
-              },
-              {
-                "required": ["setValueExpression"]
-              }
-            ]
+            "required": [ "setToName" ],
+            "anyOf": [ { "required": [ "setValue" ] }, { "required": [ "setValueExpression" ] } ]
           }
-        },
-        {
+        }, {
           "if": {
-            "properties": {
-              "type": {
-                "const": "copyvalue"
-              }
-            },
-            "required": ["type"]
+            "properties": { "type": { "const": "copyvalue" } },
+            "required": [ "type" ]
           },
-          "then": {
-            "required": ["setToName", "fromName"]
-          }
-        },
-        {
+          "then": { "required": [ "setToName", "fromName" ] }
+        }, {
           "if": {
-            "properties": {
-              "type": {
-                "const": "runexpression"
-              }
-            },
-            "required": ["type"]
+            "properties": { "type": { "const": "runexpression" } },
+            "required": [ "type" ]
           },
-          "then": {
-            "required": ["expression"]
-          }
-        },
-        {
+          "then": { "required": [ "expression" ] }
+        }, {
           "if": {
-            "properties": {
-              "type": {
-                "const": "skip"
-              }
-            },
-            "required": ["type"]
+            "properties": { "type": { "const": "skip" } },
+            "required": [ "type" ]
           },
-          "then": {
-            "required": ["gotoName"]
-          }
-        }
-      ]
+          "then": { "required": [ "gotoName" ] }
+        } ]
     },
     "validator": {
-      "description": "Minimized validator model: keep 'type' + allow common optional props + allow custom props.",
       "type": "object",
       "additionalProperties": true,
-      "required": ["type"],
+      "required": [ "type" ],
       "properties": {
-        "type": {
-          "type": "string"
-        },
-        "text": {
-          "type": "string"
-        },
-        "regex": {
-          "type": "string"
-        },
-        "minValue": {
-          "type": "number"
-        },
-        "maxValue": {
-          "type": "number"
-        },
+        "type": { "type": "string" },
+        "text": { "type": "string" },
+        "regex": { "type": "string" },
+        "minValue": { "type": "number" },
+        "maxValue": { "type": "number" },
         "minLength": {
           "type": "integer",
           "minimum": 0
@@ -245,556 +152,199 @@
           "type": "integer",
           "minimum": 0
         },
-        "expression": {
-          "$ref": "#/$defs/expression"
-        }
+        "expression": { "$ref": "#/$defs/expression" }
       }
     },
-    "choiceItem": {
-      "oneOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["value"],
-          "properties": {
-            "value": {},
-            "text": {
-              "type": "string"
-            },
-            "visibleIf": {
-              "$ref": "#/$defs/expression"
-            },
-            "enableIf": {
-              "$ref": "#/$defs/expression"
-            }
-          }
+    "choiceItem": { "oneOf": [ { "type": "string" }, {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [ "value" ],
+        "properties": {
+          "value": {
+
+          },
+          "text": { "type": "string" },
+          "visibleIf": { "$ref": "#/$defs/expression" },
+          "enableIf": { "$ref": "#/$defs/expression" }
         }
-      ]
-    },
+      } ] },
     "choices": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/choiceItem"
-      }
+      "items": { "$ref": "#/$defs/choiceItem" }
     },
     "baseElement": {
       "type": "object",
-      "required": ["type", "name"],
+      "required": [ "type", "name" ],
       "additionalProperties": true,
       "properties": {
-        "type": {
-          "type": "string"
-        },
+        "type": { "type": "string" },
         "name": {
           "type": "string",
           "minLength": 1
         },
-        "title": {
-          "type": "string"
+        "title": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/$defs/expression" },
+        "isRequired": { "type": "boolean" },
+        "requiredIf": { "$ref": "#/$defs/expression" },
+        "readOnly": { "type": "boolean" },
+        "readOnlyIf": { "$ref": "#/$defs/expression" },
+        "enableIf": { "$ref": "#/$defs/expression" },
+        "defaultValue": {
+
         },
-        "description": {
-          "type": "string"
-        },
-        "visible": {
-          "description": "Static visibility switch. Final visibility is: (visible !== false) && (visibleIf ? eval(visibleIf) : true) && parentsVisible.",
-          "type": "boolean"
-        },
-        "visibleIf": {
-          "$ref": "#/$defs/expression"
-        },
-        "isRequired": {
-          "type": "boolean"
-        },
-        "requiredIf": {
-          "$ref": "#/$defs/expression"
-        },
-        "readOnly": {
-          "description": "Static readOnly. Final readOnly is: survey.readOnly || readOnly===true || (readOnlyIf ? eval(readOnlyIf) : false). ReadOnly implies non-interactive.",
-          "type": "boolean"
-        },
-        "readOnlyIf": {
-          "$ref": "#/$defs/expression"
-        },
-        "enableIf": {
-          "description": "A boolean expression controlling interactivity. If false => element stays visible but becomes disabled (non-interactive). Final enabled is: readOnly? false : (enableIf ? eval(enableIf) : true).",
-          "$ref": "#/$defs/expression"
-        },
-        "defaultValue": {},
-        "defaultValueExpression": {
-          "$ref": "#/$defs/expression"
-        },
-        "requiredErrorText": {
-          "type": "string"
-        },
+        "defaultValueExpression": { "$ref": "#/$defs/expression" },
+        "requiredErrorText": { "type": "string" },
         "validators": {
           "type": "array",
-          "items": {
-            "$ref": "#/$defs/validator"
-          }
+          "items": { "$ref": "#/$defs/validator" }
         },
-        "x-props": {
-          "$ref": "#/$defs/xProps"
-        }
+        "x-props": { "$ref": "#/$defs/xProps" }
       }
     },
-    "questionBase": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/baseElement"
-        },
-        {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "placeholder": {
-              "type": "string"
-            },
-            "inputType": {
-              "type": "string",
-              "enum": [
-                "text",
-                "email",
-                "tel",
-                "url",
-                "number",
-                "password",
-                "date",
-                "datetime-local"
-              ]
-            },
-            "min": {
-              "type": "number"
-            },
-            "max": {
-              "type": "number"
-            },
-            "maxLength": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "rows": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "choices": {
-              "$ref": "#/$defs/choices"
-            },
-            "choicesOrder": {
-              "type": "string",
-              "enum": ["none", "asc", "desc"]
-            },
-            "showOtherItem": {
-              "type": "boolean"
-            },
-            "otherText": {
-              "type": "string"
-            },
-            "storeOthersAsComment": {
-              "type": "boolean"
-            },
-            "maxSelectedChoices": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "allowClear": {
-              "type": "boolean"
-            },
-            "storeDataAsText": {
-              "type": "boolean"
-            },
-            "allowMultiple": {
-              "type": "boolean"
-            },
-            "maxSize": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "acceptedTypes": {
-              "type": "string"
-            },
-            "dateFormat": {
-              "type": "string"
-            },
-            "labelTrue": {
-              "type": "string"
-            },
-            "labelFalse": {
-              "type": "string"
-            }
+    "questionBase": { "allOf": [ { "$ref": "#/$defs/baseElement" }, {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "placeholder": { "type": "string" },
+          "inputType": {
+            "type": "string",
+            "enum": [ "text", "email", "tel", "url", "number", "password", "date", "datetime-local" ]
+          },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "maxLength": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "choices": { "$ref": "#/$defs/choices" },
+          "choicesOrder": {
+            "type": "string",
+            "enum": [ "none", "asc", "desc" ]
+          },
+          "showOtherItem": { "type": "boolean" },
+          "otherText": { "type": "string" },
+          "storeOthersAsComment": { "type": "boolean" },
+          "maxSelectedChoices": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "allowClear": { "type": "boolean" },
+          "storeDataAsText": { "type": "boolean" },
+          "allowMultiple": { "type": "boolean" },
+          "maxSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "acceptedTypes": { "type": "string" },
+          "dateFormat": { "type": "string" },
+          "labelTrue": { "type": "string" },
+          "labelFalse": { "type": "string" }
+        }
+      } ] },
+    "question_text": { "allOf": [ { "$ref": "#/$defs/questionBase" }, {
+        "type": "object",
+        "properties": { "type": { "const": "text" } }
+      } ] },
+    "question_date": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "date" } } } ] },
+    "question_comment": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "comment" } } } ] },
+    "question_boolean": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": {
+        "type": { "const": "boolean" },
+        "defaultValue": { "type": "boolean" }
+      } } ] },
+    "question_file": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "file" } } } ] },
+    "question_radiogroup": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "radiogroup" } } } ] },
+    "question_dropdown": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "dropdown" } } } ] },
+    "question_checkbox": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "checkbox" } } } ] },
+    "question_tagbox": { "allOf": [ { "$ref": "#/$defs/questionBase" }, { "properties": { "type": { "const": "tagbox" } } } ] },
+    "question_expression": { "allOf": [ { "$ref": "#/$defs/baseElement" }, {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [ "expression" ],
+        "properties": {
+          "type": { "const": "expression" },
+          "expression": { "$ref": "#/$defs/expression" },
+          "format": { "type": "string" },
+          "displayStyle": {
+            "type": "string",
+            "enum": [ "decimal", "currency", "percent", "date", "none" ],
+            "default": "none"
+          },
+          "currency": { "type": "string" },
+          "useGrouping": {
+            "type": "boolean",
+            "default": true
+          },
+          "precision": {
+            "type": "integer",
+            "minimum": -1,
+            "maximum": 20,
+            "default": -1
+          },
+          "minimumFractionDigits": {
+            "type": "integer",
+            "minimum": -1,
+            "maximum": 20,
+            "default": -1
+          },
+          "maximumFractionDigits": {
+            "type": "integer",
+            "minimum": -1,
+            "maximum": 20,
+            "default": -1
+          },
+          "runIfReadOnly": {
+            "type": "boolean",
+            "default": true
           }
         }
-      ]
-    },
-    "question_text": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "text"
-            }
+      } ] },
+    "question_multipletext": { "allOf": [ { "$ref": "#/$defs/baseElement" }, {
+        "type": "object",
+        "required": [ "items" ],
+        "additionalProperties": true,
+        "properties": {
+          "type": { "const": "multipletext" },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "array", "minItems": 1, "items": { "allOf": [{ "$ref": "#/$defs/questionBase" }, { "required": ["name"] }] } }
           }
         }
-      ]
-    },
-    "question_date": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "date"
-            }
+      } ] },
+    "panel": { "allOf": [ { "$ref": "#/$defs/baseElement" }, {
+        "type": "object",
+        "required": [ "elements" ],
+        "additionalProperties": true,
+        "properties": {
+          "type": { "const": "panel" },
+          "elements": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/element" }
+          },
+          "renderAs": {
+            "type": "string",
+            "anyOf": [ { "enum": [ "section", "grid", "box", "button", "cancel", "submit", "notification" ] }, { "pattern": "^(custom:).+" } ]
           }
         }
-      ]
-    },
-    "question_comment": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "comment"
-            }
-          }
-        }
-      ]
-    },
-    "question_boolean": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "boolean"
-            },
-            "defaultValue": {
-              "type": "boolean"
-            }
-          }
-        }
-      ]
-    },
-    "question_file": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "file"
-            }
-          }
-        }
-      ]
-    },
-    "question_radiogroup": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "radiogroup"
-            }
-          }
-        }
-      ]
-    },
-    "question_dropdown": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "dropdown"
-            }
-          }
-        }
-      ]
-    },
-    "question_checkbox": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "checkbox"
-            }
-          }
-        }
-      ]
-    },
-    "question_tagbox": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/questionBase"
-        },
-        {
-          "properties": {
-            "type": {
-              "const": "tagbox"
-            }
-          }
-        }
-      ]
-    },
-    "question_expression": {
-      "description": "SurveyJS Expression question: read-only question that calculates a value from an expression.",
-      "allOf": [
-        {
-          "$ref": "#/$defs/baseElement"
-        },
-        {
-          "type": "object",
-          "additionalProperties": true,
-          "required": ["expression"],
-          "properties": {
-            "type": {
-              "const": "expression"
-            },
-            "expression": {
-              "$ref": "#/$defs/expression"
-            },
-            "format": {
-              "description": "Format string for calculated value. Use {0} as value placeholder.",
-              "type": "string"
-            },
-            "displayStyle": {
-              "description": "How to display the calculated value.",
-              "type": "string",
-              "enum": ["decimal", "currency", "percent", "date", "none"],
-              "default": "none"
-            },
-            "currency": {
-              "description": "Three-letter currency code; applies when displayStyle=currency.",
-              "type": "string"
-            },
-            "useGrouping": {
-              "description": "Use grouping separators when displayStyle is numeric/currency/percent.",
-              "type": "boolean",
-              "default": true
-            },
-            "precision": {
-              "description": "Number of decimal digits to keep (-1 = unlimited).",
-              "type": "integer",
-              "minimum": -1,
-              "maximum": 20,
-              "default": -1
-            },
-            "minimumFractionDigits": {
-              "type": "integer",
-              "minimum": -1,
-              "maximum": 20,
-              "default": -1
-            },
-            "maximumFractionDigits": {
-              "type": "integer",
-              "minimum": -1,
-              "maximum": 20,
-              "default": -1
-            },
-            "runIfReadOnly": {
-              "description": "If true, expression may still run even if element is readOnly (engine-side).",
-              "type": "boolean",
-              "default": true
-            }
-          }
-        }
-      ]
-    },
-    "question_multipletext": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/baseElement"
-        },
-        {
-          "type": "object",
-          "required": ["items"],
-          "additionalProperties": true,
-          "properties": {
-            "type": {
-              "const": "multipletext"
-            },
-            "items": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "type": "object",
-                "additionalProperties": true,
-                "required": ["name"],
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "title": {
-                    "type": "string"
-                  },
-                  "placeholder": {
-                    "type": "string"
-                  },
-                  "inputType": {
-                    "type": "string",
-                    "enum": [
-                      "text",
-                      "email",
-                      "tel",
-                      "url",
-                      "number",
-                      "password",
-                      "date",
-                      "datetime-local"
-                    ]
-                  },
-                  "isRequired": {
-                    "type": "boolean"
-                  },
-                  "requiredIf": {
-                    "$ref": "#/$defs/expression"
-                  },
-                  "visibleIf": {
-                    "$ref": "#/$defs/expression"
-                  },
-                  "readOnlyIf": {
-                    "$ref": "#/$defs/expression"
-                  },
-                  "x-props": {
-                    "$ref": "#/$defs/xProps"
-                  }
-                }
-              }
-            }
-          }
-        }
-      ]
-    },
-    "panel": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/baseElement"
-        },
-        {
-          "type": "object",
-          "required": ["elements"],
-          "additionalProperties": true,
-          "properties": {
-            "type": {
-              "const": "panel"
-            },
-            "elements": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/element"
-              }
-            },
-            "renderAs": {
-              "type": "string",
-              "anyOf": [
-                {
-                  "enum": [
-                    "section",
-                    "grid",
-                    "box",
-                    "button",
-                    "cancel",
-                    "submit",
-                    "notification"
-                  ]
-                },
-                {
-                  "pattern": "^(custom:).+"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    "element": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/question_text"
-        },
-        {
-          "$ref": "#/$defs/question_date"
-        },
-        {
-          "$ref": "#/$defs/question_expression"
-        },
-        {
-          "$ref": "#/$defs/question_multipletext"
-        },
-        {
-          "$ref": "#/$defs/question_boolean"
-        },
-        {
-          "$ref": "#/$defs/question_comment"
-        },
-        {
-          "$ref": "#/$defs/question_file"
-        },
-        {
-          "$ref": "#/$defs/question_radiogroup"
-        },
-        {
-          "$ref": "#/$defs/question_checkbox"
-        },
-        {
-          "$ref": "#/$defs/question_dropdown"
-        },
-        {
-          "$ref": "#/$defs/question_tagbox"
-        },
-        {
-          "$ref": "#/$defs/panel"
-        }
-      ]
-    },
+      } ] },
+    "element": { "oneOf": [ { "$ref": "#/$defs/question_text" }, { "$ref": "#/$defs/question_date" }, { "$ref": "#/$defs/question_expression" }, { "$ref": "#/$defs/question_multipletext" }, { "$ref": "#/$defs/question_boolean" }, { "$ref": "#/$defs/question_comment" }, { "$ref": "#/$defs/question_file" }, { "$ref": "#/$defs/question_radiogroup" }, { "$ref": "#/$defs/question_checkbox" }, { "$ref": "#/$defs/question_dropdown" }, { "$ref": "#/$defs/question_tagbox" }, { "$ref": "#/$defs/panel" } ] },
     "page": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["name"],
+      "required": [ "name" ],
       "properties": {
-        "name": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "visible": {
-          "description": "Static visibility switch. Final page visibility is: (visible !== false) && (visibleIf ? eval(visibleIf) : true). If a page is invisible, its elements are treated as invisible containers for clearInvisibleValues=onHiddenContainer.",
-          "type": "boolean"
-        },
-        "visibleIf": {
-          "$ref": "#/$defs/expression"
-        },
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/$defs/expression" },
         "elements": {
           "type": "array",
-          "items": {
-            "$ref": "#/$defs/element"
-          }
+          "items": { "$ref": "#/$defs/element" }
         }
       }
     }
