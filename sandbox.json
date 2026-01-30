@@ -1,0 +1,938 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FormRenderer } from "src/form";
+
+const safeStringify = (value) => {
+  const seen = new WeakSet();
+  return JSON.stringify(
+    value,
+    (k, v) => {
+      if (typeof v === "object" && v !== null) {
+        if (seen.has(v)) return undefined;
+        seen.add(v);
+      }
+      return v;
+    },
+    2
+  );
+};
+
+const tryParseJson = (text) => {
+  try {
+    const parsed = JSON.parse(text);
+    return { ok: true, value: parsed, error: "" };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, value: null, error: msg };
+  }
+};
+
+const deepClone = (x) => JSON.parse(JSON.stringify(x));
+
+const ensureRootBuckets = (root) => {
+  const next = typeof root === "object" && root ? deepClone(root) : {};
+  const hasPages = Array.isArray(next.pages) && next.pages.length > 0;
+  const hasElements = Array.isArray(next.elements) && next.elements.length > 0;
+
+  if (hasPages) return next;
+
+  if (!hasElements) next.elements = [];
+  return next;
+};
+
+const normalizeToInsertTarget = (root) => {
+  const next = ensureRootBuckets(root);
+
+  if (Array.isArray(next.pages) && next.pages.length > 0) {
+    const p0 = next.pages[0] ?? {};
+    const page0 = { ...(p0 || {}), elements: Array.isArray(p0.elements) ? p0.elements : [] };
+    next.pages = [page0, ...next.pages.slice(1)];
+    return {
+      root: next,
+      getElements: () => next.pages[0].elements,
+      setElements: (els) => {
+        next.pages[0].elements = els;
+        return next;
+      },
+    };
+  }
+
+  next.elements = Array.isArray(next.elements) ? next.elements : [];
+  return {
+    root: next,
+    getElements: () => next.elements,
+    setElements: (els) => {
+      next.elements = els;
+      return next;
+    },
+  };
+};
+
+const createPresets = () => {
+  const kitchenSink = {
+    title: "Sandbox: Kitchen Sink",
+    description: "All question types + required/readonly/validators/expressions",
+    checkErrorsMode: "onValueChanged",
+    clearInvisibleValues: "onHiddenContainer",
+    calculatedValues: [
+      { name: "fullName", expression: "trim({firstName} + ' ' + {lastName})", includeIntoResult: false },
+      { name: "agePlus10", expression: "{age} + 10", includeIntoResult: false },
+    ],
+    triggers: [
+      { type: "setvalue", expression: "{agree} = true", setToName: "agreedAt", setValueExpression: "today()" },
+      { type: "copyvalue", expression: "{copyProfile} = true", setToName: "profileCopy", fromName: "profile" },
+    ],
+    pages: [
+      {
+        name: "page_basics",
+        title: "Basics",
+        elements: [
+          {
+            type: "text",
+            name: "firstName",
+            title: "type=text (inputType=text) required + text length",
+            placeholder: "John",
+            isRequired: true,
+            requiredErrorText: "First name is required.",
+            validators: [{ type: "text", minLength: 2, maxLength: 30, text: "2-30 chars" }],
+          },
+          {
+            type: "text",
+            name: "lastName",
+            title: "type=text regex validator",
+            placeholder: "Doe",
+            validators: [{ type: "regex", regex: "^[A-Za-z\\-\\s]+$", text: "Only letters, spaces, hyphen" }],
+          },
+          {
+            type: "boolean",
+            name: "wantsContact",
+            title: "type=boolean (drives requiredIf / readOnlyIf)",
+            labelTrue: "Yes",
+            labelFalse: "No",
+            defaultValue: false,
+          },
+          {
+            type: "text",
+            name: "email",
+            title: "type=text (inputType=email) requiredIf wantsContact",
+            inputType: "email",
+            placeholder: "john@doe.com",
+            requiredIf: "{wantsContact} = true",
+            validators: [{ type: "regex", regex: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", text: "Invalid email" }],
+          },
+          {
+            type: "comment",
+            name: "about",
+            title: "type=comment readOnlyIf (when wantsContact=false)",
+            placeholder: "Say something…",
+            rows: 4,
+            readOnlyIf: "{wantsContact} = false",
+          },
+          {
+            type: "expression",
+            name: "expr_fullName",
+            title: "type=expression calculated fullName",
+            expression: "{fullName}",
+            displayStyle: "none",
+            runIfReadOnly: true,
+          },
+        ],
+      },
+      {
+        name: "page_choices",
+        title: "Choices",
+        elements: [
+          {
+            type: "radiogroup",
+            name: "plan",
+            title: "type=radiogroup required",
+            isRequired: true,
+            choices: [
+              { value: "free", text: "Free" },
+              { value: "pro", text: "Pro" },
+              { value: "enterprise", text: "Enterprise", enableIf: "{wantsContact} = true" },
+            ],
+          },
+          {
+            type: "dropdown",
+            name: "country",
+            title: "type=dropdown visibleIf (plan != free)",
+            allowClear: true,
+            visibleIf: "{plan} != 'free'",
+            choices: ["PL", "DE", "US", "UK"],
+          },
+          {
+            type: "checkbox",
+            name: "features",
+            title: "type=checkbox + maxSelectedChoices",
+            choices: [
+              { value: "a", text: "Feature A" },
+              { value: "b", text: "Feature B" },
+              { value: "c", text: "Feature C" },
+            ],
+            maxSelectedChoices: 2,
+            validators: [{ type: "answercount", maxCount: 2, text: "Pick up to 2" }],
+          },
+          {
+            type: "tagbox",
+            name: "tags",
+            title: "type=tagbox storeDataAsText",
+            allowMultiple: true,
+            storeDataAsText: true,
+            choices: ["react", "schema", "validators", "expressions", "ui"],
+          },
+        ],
+      },
+      {
+        name: "page_numbers_dates",
+        title: "Numbers & dates",
+        elements: [
+          {
+            type: "text",
+            name: "age",
+            title: "type=text (inputType=number) numeric validator",
+            inputType: "number",
+            min: 18,
+            max: 120,
+            validators: [{ type: "numeric", minValue: 18, maxValue: 120, text: "Age 18-120" }],
+          },
+          { type: "text", name: "birthDate", title: "type=text (inputType=date)", inputType: "date" },
+          {
+            type: "text",
+            name: "agreedAt",
+            title: "type=text (inputType=datetime-local) readOnly target of trigger",
+            inputType: "datetime-local",
+            readOnly: true,
+          },
+          {
+            type: "expression",
+            name: "expr_agePlus10",
+            title: "type=expression ({age} + 10) displayStyle=decimal",
+            expression: "{agePlus10}",
+            displayStyle: "decimal",
+            precision: 0,
+          },
+          { type: "boolean", name: "agree", title: "type=boolean (trigger setvalue agreedAt)", defaultValue: false },
+        ],
+      },
+      {
+        name: "page_file_and_panel",
+        title: "File & Panel",
+        elements: [
+          {
+            type: "file",
+            name: "resume",
+            title: "type=file requiredIf (plan=enterprise)",
+            acceptedTypes: ".pdf,.doc,.docx",
+            maxSize: 2_000_000,
+            requiredIf: "{plan} = 'enterprise'",
+          },
+          {
+            type: "panel",
+            name: "profile",
+            title: "type=panel renderAs=Card enableIf",
+            renderAs: "Card",
+            enableIf: "{plan} != 'free'",
+            elements: [
+              { type: "text", name: "profileCompany", title: "type=text inside panel required", isRequired: true },
+              {
+                type: "multipletext",
+                name: "profileContacts",
+                title: "type=multipletext items + requiredIf",
+                items: [
+                  { name: "phone", title: "item phone (tel) required", inputType: "tel", isRequired: true },
+                  { name: "website", title: "item website (url)", inputType: "url" },
+                  { name: "vip", title: "item vip readOnlyIf (plan!=enterprise)", readOnlyIf: "{plan} != 'enterprise'" },
+                ],
+                requiredIf: "{wantsContact} = true",
+              },
+            ],
+          },
+          { type: "boolean", name: "copyProfile", title: "type=boolean (trigger copyvalue)", defaultValue: false },
+          { type: "comment", name: "profileCopy", title: "type=comment (target of trigger)", rows: 3, readOnly: true },
+        ],
+      },
+    ],
+  };
+
+  const typesShowcase = {
+    title: "Sandbox: Types showcase",
+    checkErrorsMode: "onValueChanged",
+    elements: [
+      { type: "text", name: "t_text", title: "type=text", placeholder: "Text" },
+      { type: "text", name: "t_email", title: "type=text (inputType=email)", inputType: "email", placeholder: "a@b.com" },
+      { type: "text", name: "t_date", title: "type=text (inputType=date)", inputType: "date" },
+      { type: "text", name: "t_datetime", title: "type=text (inputType=datetime-local)", inputType: "datetime-local" },
+      { type: "comment", name: "t_comment", title: "type=comment", rows: 3, placeholder: "Multiline..." },
+      { type: "boolean", name: "t_boolean", title: "type=boolean", labelTrue: "True", labelFalse: "False" },
+      { type: "radiogroup", name: "t_radio", title: "type=radiogroup", choices: ["A", "B", "C"] },
+      { type: "dropdown", name: "t_dropdown", title: "type=dropdown", allowClear: true, choices: ["PL", "DE", "US"] },
+      { type: "checkbox", name: "t_checkbox", title: "type=checkbox", choices: ["x", "y", "z"] },
+      { type: "tagbox", name: "t_tagbox", title: "type=tagbox", allowMultiple: true, choices: ["react", "ui", "schema"] },
+      { type: "file", name: "t_file", title: "type=file", acceptedTypes: ".png,.jpg,.pdf", maxSize: 5_000_000 },
+      { type: "expression", name: "t_expr", title: "type=expression", expression: "'Hello ' + {t_text}", displayStyle: "none" },
+      {
+        type: "multipletext",
+        name: "t_multipletext",
+        title: "type=multipletext",
+        items: [
+          { name: "a", title: "item a (text)", inputType: "text" },
+          { name: "b", title: "item b (number)", inputType: "number" },
+        ],
+      },
+      {
+        type: "panel",
+        name: "t_panel",
+        title: "type=panel",
+        renderAs: "CardRow",
+        elements: [{ type: "text", name: "t_panel_text", title: "type=text (inside panel)" }],
+      },
+    ],
+  };
+
+  const rules = {
+    title: "Sandbox: Validation / required / readOnly / expressions",
+    checkErrorsMode: "onValueChanged",
+    elements: [
+      {
+        type: "boolean",
+        name: "v_isCompany",
+        title: "type=boolean (drives requiredIf/visibleIf/readOnlyIf/enableIf)",
+        labelTrue: "Company",
+        labelFalse: "Individual",
+        defaultValue: false,
+      },
+      {
+        type: "text",
+        name: "v_nip",
+        title: "type=text + requiredIf + regex (NIP)",
+        placeholder: "1234567890",
+        visibleIf: "{v_isCompany} = true",
+        requiredIf: "{v_isCompany} = true",
+        validators: [{ type: "regex", regex: "^[0-9]{10}$", text: "NIP must be 10 digits" }],
+      },
+      {
+        type: "text",
+        name: "v_personalId",
+        title: "type=text + readOnlyIf (editable only for individual)",
+        placeholder: "ID",
+        readOnlyIf: "{v_isCompany} = true",
+      },
+      {
+        type: "text",
+        name: "v_password",
+        title: "type=text (password) + length",
+        inputType: "password",
+        validators: [{ type: "text", minLength: 8, maxLength: 64, text: "8-64 chars" }],
+      },
+      {
+        type: "text",
+        name: "v_amount",
+        title: "type=text (number) + numeric + enableIf",
+        inputType: "number",
+        enableIf: "{v_password} notempty",
+        validators: [{ type: "numeric", minValue: 100, maxValue: 10000, text: "100-10000" }],
+      },
+      {
+        type: "text",
+        name: "v_coupon",
+        title: "type=text + expression validator (coupon if amount>=500)",
+        validators: [
+          { type: "expression", expression: "({v_amount} < 500) or ({v_coupon} notempty)", text: "Coupon required when amount >= 500" },
+        ],
+      },
+      {
+        type: "expression",
+        name: "v_summary",
+        title: "type=expression (live summary)",
+        expression: "'Mode: ' + iif({v_isCompany} = true, 'Company', 'Individual') + '; amount=' + {v_amount}",
+        displayStyle: "none",
+      },
+    ],
+  };
+
+  return [
+    { id: "kitchenSink", label: "Kitchen Sink (everything)", value: kitchenSink },
+    { id: "types", label: "Types showcase (all components)", value: typesShowcase },
+    { id: "rules", label: "Validation / required / readOnly / expressions", value: rules },
+  ];
+};
+
+const createSnippets = () => {
+  const mk = (id, label, element) => ({ id, label, element });
+
+  return [
+    {
+      group: "Types",
+      items: [
+        mk("s_text", "type=text (inputType=text)", { type: "text", name: "type_input_text", title: "type=text (inputType=text)", placeholder: "Type here..." }),
+        mk("s_email", "type=text (inputType=email)", { type: "text", name: "type_input_email", title: "type=text (inputType=email)", inputType: "email", placeholder: "a@b.com" }),
+        mk("s_date", "type=text (inputType=date)", { type: "text", name: "type_input_date", title: "type=text (inputType=date)", inputType: "date" }),
+        mk("s_datetime", "type=text (inputType=datetime-local)", { type: "text", name: "type_input_datetime", title: "type=text (inputType=datetime-local)", inputType: "datetime-local" }),
+        mk("s_comment", "type=comment", { type: "comment", name: "type_comment", title: "type=comment", rows: 3, placeholder: "Multiline..." }),
+        mk("s_bool", "type=boolean", { type: "boolean", name: "type_boolean", title: "type=boolean", labelTrue: "Yes", labelFalse: "No" }),
+        mk("s_radio", "type=radiogroup", { type: "radiogroup", name: "type_radiogroup", title: "type=radiogroup", choices: ["A", "B", "C"] }),
+        mk("s_dropdown", "type=dropdown", { type: "dropdown", name: "type_dropdown", title: "type=dropdown", allowClear: true, choices: ["PL", "DE", "US"] }),
+        mk("s_checkbox", "type=checkbox", { type: "checkbox", name: "type_checkbox", title: "type=checkbox", choices: ["x", "y", "z"] }),
+        mk("s_tagbox", "type=tagbox", { type: "tagbox", name: "type_tagbox", title: "type=tagbox", allowMultiple: true, storeDataAsText: true, choices: ["react", "schema", "ui"] }),
+        mk("s_file", "type=file", { type: "file", name: "type_file", title: "type=file", acceptedTypes: ".pdf,.png,.jpg", maxSize: 2_000_000 }),
+        mk("s_expr", "type=expression", { type: "expression", name: "type_expression", title: "type=expression", expression: "'Hello ' + {type_input_text}", displayStyle: "none" }),
+        mk("s_multi", "type=multipletext", {
+          type: "multipletext",
+          name: "type_multipletext",
+          title: "type=multipletext",
+          items: [
+            { name: "a", title: "item a (text)", inputType: "text" },
+            { name: "b", title: "item b (number)", inputType: "number" },
+          ],
+        }),
+        mk("s_panel", "type=panel", { type: "panel", name: "type_panel", title: "type=panel", renderAs: "Card", elements: [{ type: "text", name: "panel_child", title: "child type=text" }] }),
+      ],
+    },
+    {
+      group: "Rules",
+      items: [
+        mk("r_required", "required + requiredErrorText", { type: "text", name: "rule_required", title: "required example", isRequired: true, requiredErrorText: "This field is required." }),
+        mk("r_requiredIf", "requiredIf", { type: "text", name: "rule_requiredIf", title: "requiredIf {rule_gate} = true", requiredIf: "{rule_gate} = true" }),
+        mk("r_gate", "gate boolean (for requiredIf/visibleIf)", { type: "boolean", name: "rule_gate", title: "gate (toggle me)", defaultValue: false, labelTrue: "true", labelFalse: "false" }),
+        mk("r_readonlyIf", "readOnlyIf", { type: "text", name: "rule_readonlyIf", title: "readOnlyIf {rule_gate}=true", readOnlyIf: "{rule_gate} = true", placeholder: "Becomes read-only" }),
+        mk("r_visibleIf", "visibleIf", { type: "comment", name: "rule_visibleIf", title: "visibleIf {rule_gate}=true", visibleIf: "{rule_gate} = true", rows: 2, placeholder: "Hidden unless gate=true" }),
+        mk("r_enableIf", "enableIf", { type: "text", name: "rule_enableIf", title: "enableIf {rule_gate}=true", enableIf: "{rule_gate} = true", placeholder: "Disabled unless gate=true" }),
+      ],
+    },
+    {
+      group: "Validators",
+      items: [
+        mk("v_text_len", "validator: text min/max", { type: "text", name: "val_text_len", title: "text length (2-8)", validators: [{ type: "text", minLength: 2, maxLength: 8, text: "2-8 chars" }] }),
+        mk("v_regex", "validator: regex", { type: "text", name: "val_regex", title: "regex (only digits)", validators: [{ type: "regex", regex: "^[0-9]+$", text: "Digits only" }] }),
+        mk("v_numeric", "validator: numeric", { type: "text", name: "val_numeric", title: "numeric (10-20)", inputType: "number", validators: [{ type: "numeric", minValue: 10, maxValue: 20, text: "10-20" }] }),
+        mk("v_answercount", "validator: answercount", { type: "checkbox", name: "val_answercount", title: "answercount max=2", choices: ["a", "b", "c"], validators: [{ type: "answercount", maxCount: 2, text: "Pick up to 2" }] }),
+        mk("v_expression", "validator: expression", { type: "text", name: "val_expr", title: "expression validator: must contain 'ok'", validators: [{ type: "expression", expression: "{val_expr} contains 'ok'", text: "Must contain 'ok'" }] }),
+      ],
+    },
+    {
+      group: "Expressions & automation",
+      items: [
+        mk("e_calcValues", "calculatedValues (root)", {
+          title: "Root: calculatedValues demo",
+          checkErrorsMode: "onValueChanged",
+          calculatedValues: [
+            { name: "calc_full", expression: "trim({calc_first} + ' ' + {calc_last})", includeIntoResult: false },
+          ],
+          elements: [
+            { type: "text", name: "calc_first", title: "first", placeholder: "John" },
+            { type: "text", name: "calc_last", title: "last", placeholder: "Doe" },
+            { type: "expression", name: "calc_out", title: "expression {calc_full}", expression: "{calc_full}", displayStyle: "none" },
+          ],
+        }),
+        mk("e_triggers", "triggers (root)", {
+          title: "Root: triggers demo",
+          checkErrorsMode: "onValueChanged",
+          triggers: [
+            { type: "setvalue", expression: "{trg_toggle} = true", setToName: "trg_out", setValueExpression: "'triggered'" },
+          ],
+          elements: [
+            { type: "boolean", name: "trg_toggle", title: "toggle to trigger setvalue", defaultValue: false },
+            { type: "text", name: "trg_out", title: "target (readOnly)", readOnly: true },
+          ],
+        }),
+      ],
+    },
+  ];
+};
+
+const createCheats = () => [
+  {
+    group: "Basics",
+    items: [
+      { label: "Not empty", text: "{field} notempty" },
+      { label: "Empty", text: "{field} empty" },
+      { label: "Equals", text: "{field} = 'value'" },
+      { label: "Not equals", text: "{field} != 'value'" },
+      { label: "And / Or", text: "({a} = 1) and ({b} = 2)  |  ({a} = 1) or ({b} = 2)" },
+    ],
+  },
+  {
+    group: "Strings",
+    items: [
+      { label: "contains", text: "{field} contains 'abc'" },
+      { label: "startsWith", text: "{field} startswith 'abc'" },
+      { label: "endsWith", text: "{field} endswith 'abc'" },
+      { label: "length", text: "length({field}) > 3" },
+      { label: "trim", text: "trim({field})" },
+    ],
+  },
+  {
+    group: "Numbers & dates",
+    items: [
+      { label: "greater/less", text: "{n} > 10  |  {n} <= 10" },
+      { label: "between", text: "({n} >= 10) and ({n} <= 20)" },
+      { label: "today()", text: "today()" },
+      { label: "date compare", text: "{date} >= today()" },
+    ],
+  },
+  {
+    group: "Conditionals",
+    items: [
+      { label: "iif", text: "iif({flag} = true, 'Yes', 'No')" },
+      { label: "visibleIf", text: "{plan} = 'pro'" },
+      { label: "enableIf", text: "{flag} = true" },
+      { label: "requiredIf", text: "{wantsContact} = true" },
+      { label: "readOnlyIf", text: "{role} = 'viewer'" },
+    ],
+  },
+];
+
+const styles = {
+  page: {
+    height: "100vh",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"',
+    background: "#0b0f12",
+    color: "#e7eef5",
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+  },
+  title: { fontSize: 16, fontWeight: 700, letterSpacing: 0.2 },
+  subtitle: { fontSize: 12, opacity: 0.7 },
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.06)",
+    fontSize: 12,
+    fontWeight: 650,
+  },
+  body: { flex: 1, display: "flex", minHeight: 0 },
+  left: {
+    width: "50%",
+    minWidth: 520,
+    borderRight: "1px solid rgba(255,255,255,0.08)",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: 0,
+  },
+  right: { flex: 1, minWidth: 0, padding: 12, overflow: "auto" },
+
+  toolbar: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    padding: 12,
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+  },
+  select: {
+    flex: 1,
+    minWidth: 220,
+    height: 34,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 10,
+    padding: "0 10px",
+    color: "#e7eef5",
+    outline: "none",
+  },
+  button: {
+    height: 34,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#e7eef5",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+
+  editorTop: { display: "flex", minHeight: 0, flex: 1 },
+  editorWrap: { flex: 1, minHeight: 0, padding: 12 },
+  textarea: {
+    width: "100%",
+    height: "100%",
+    resize: "none",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.35)",
+    color: "#e7eef5",
+    padding: 12,
+    outline: "none",
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 12,
+    lineHeight: 1.5,
+  },
+  error: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 14,
+    border: "1px solid rgba(255,80,80,0.35)",
+    background: "rgba(255,80,80,0.10)",
+    color: "#ffd7d7",
+    fontSize: 12,
+    whiteSpace: "pre-wrap",
+  },
+  hint: {
+    padding: 12,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    fontSize: 12,
+    opacity: 0.85,
+  },
+
+  sideRail: {
+    width: 310,
+    borderLeft: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: 0,
+  },
+  sideHeader: {
+    padding: 12,
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  sideTitle: { fontSize: 12, fontWeight: 750, opacity: 0.9 },
+  tabs: {
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
+  },
+  tab: (active) => ({
+    height: 28,
+    padding: "0 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: active ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.04)",
+    color: "#e7eef5",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 650,
+  }),
+  sideBody: { padding: 12, overflow: "auto", minHeight: 0 },
+  groupTitle: { fontSize: 11, opacity: 0.7, fontWeight: 800, letterSpacing: 0.3, margin: "10px 0 8px" },
+  itemBtn: {
+    width: "100%",
+    textAlign: "left",
+    padding: "10px 10px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#e7eef5",
+    cursor: "pointer",
+    fontSize: 12,
+    lineHeight: 1.25,
+  },
+  itemMeta: { marginTop: 6, fontSize: 11, opacity: 0.65, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' },
+  smallRow: { display: "flex", gap: 8, alignItems: "center" },
+  input: {
+    height: 30,
+    width: "100%",
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 10,
+    padding: "0 10px",
+    color: "#e7eef5",
+    outline: "none",
+    fontSize: 12,
+  },
+  copyBtn: {
+    height: 30,
+    padding: "0 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#e7eef5",
+    cursor: "pointer",
+    fontWeight: 650,
+    fontSize: 12,
+    whiteSpace: "nowrap",
+  },
+};
+
+const useClipboard = () => {
+  const [status, setStatus] = useState("");
+  const copy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("Copied");
+      setTimeout(() => setStatus(""), 700);
+      return true;
+    } catch {
+      setStatus("Copy failed");
+      setTimeout(() => setStatus(""), 900);
+      return false;
+    }
+  };
+  return { status, copy };
+};
+
+const insertSnippetIntoJson = ({ rootJson, snippet }) => {
+  const { root, getElements, setElements } = normalizeToInsertTarget(rootJson);
+
+  if (snippet && typeof snippet === "object" && (snippet.pages || snippet.elements || snippet.title)) {
+    if (snippet.pages || snippet.elements) return ensureRootBuckets(snippet);
+  }
+
+  const current = getElements();
+  const next = [...current, deepClone(snippet)];
+  return setElements(next);
+};
+
+export default function Sandbox() {
+  const presets = useMemo(() => createPresets(), []);
+  const snippets = useMemo(() => createSnippets(), []);
+  const cheats = useMemo(() => createCheats(), []);
+  const { status, copy } = useClipboard();
+
+  const [presetId, setPresetId] = useState(presets[0]?.id ?? "kitchenSink");
+  const [text, setText] = useState(() => safeStringify(presets[0]?.value ?? { elements: [] }));
+  const [json, setJson] = useState(() => presets[0]?.value ?? { elements: [] });
+  const [parseError, setParseError] = useState("");
+
+  const [railTab, setRailTab] = useState("examples"); // examples | cheats
+  const [filter, setFilter] = useState("");
+  const [cheatFilter, setCheatFilter] = useState("");
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    const chosen = presets.find((p) => p.id === presetId) ?? presets[0];
+    const nextText = safeStringify(chosen.value);
+    setText(nextText);
+    setJson(chosen.value);
+    setParseError("");
+  }, [presetId, presets]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const parsed = tryParseJson(text);
+      setParseError(parsed.ok ? "" : parsed.error);
+      if (parsed.ok) setJson(parsed.value);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [text]);
+
+  const onFormat = () => {
+    const parsed = tryParseJson(text);
+    if (!parsed.ok) return;
+    setText(safeStringify(parsed.value));
+  };
+
+  const onReset = () => {
+    const chosen = presets.find((p) => p.id === presetId) ?? presets[0];
+    setText(safeStringify(chosen.value));
+    setJson(chosen.value);
+    setParseError("");
+  };
+
+  const applyJson = (nextJson) => {
+    const nextText = safeStringify(nextJson);
+    setText(nextText);
+    setJson(nextJson);
+    setParseError("");
+    requestAnimationFrame(() => textareaRef.current?.focus?.());
+  };
+
+  const addSnippet = (snippet) => {
+    const parsed = tryParseJson(text);
+    if (!parsed.ok) return;
+
+    const next = insertSnippetIntoJson({ rootJson: parsed.value, snippet });
+    applyJson(next);
+  };
+
+  const insertCheatAtCursor = async (cheatText) => {
+    const el = textareaRef.current;
+    if (!el) {
+      await copy(cheatText);
+      return;
+    }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const next = text.slice(0, start) + cheatText + text.slice(end);
+    setText(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + cheatText.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const filteredSnippets = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return snippets;
+    return snippets
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((x) => x.label.toLowerCase().includes(q) || x.id.toLowerCase().includes(q)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [filter, snippets]);
+
+  const filteredCheats = useMemo(() => {
+    const q = cheatFilter.trim().toLowerCase();
+    if (!q) return cheats;
+    return cheats
+      .map((g) => ({
+        ...g,
+        items: g.items.filter((x) => x.label.toLowerCase().includes(q) || x.text.toLowerCase().includes(q)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [cheatFilter, cheats]);
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <div style={styles.title}>Schema Sandbox</div>
+          <div style={styles.subtitle}>
+            Left: JSON editor • Right: <span style={{ opacity: 0.9 }}>{"<FormRenderer json={json} />"}</span> • Rail: Examples + Cheats
+          </div>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+          <span style={styles.badge}>Interactive learning</span>
+          {status ? <span style={{ ...styles.badge, opacity: 0.85 }}>{status}</span> : null}
+        </div>
+      </div>
+
+      <div style={styles.body}>
+        <div style={styles.left}>
+          <div style={styles.toolbar}>
+            <select style={styles.select} value={presetId} onChange={(e) => setPresetId(e.target.value)}>
+              {presets.map((p) => (
+                <option key={p.id} value={p.id} style={{ background: "#0b0f12", color: "#e7eef5" }}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+
+            <button style={styles.button} onClick={onFormat} type="button">
+              Format JSON
+            </button>
+            <button style={styles.button} onClick={onReset} type="button">
+              Reset preset
+            </button>
+          </div>
+
+          <div style={styles.editorTop}>
+            <div style={styles.editorWrap}>
+              <textarea
+                ref={textareaRef}
+                style={styles.textarea}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                spellCheck={false}
+              />
+
+              {parseError ? <div style={styles.error}>JSON parse error: {parseError}</div> : null}
+
+              <div style={{ marginTop: 10, ...styles.hint }}>
+                <b>Examples</b>: klikaj żeby dopinać elementy do aktualnego JSONa. <br />
+                <b>Cheats</b>: klikaj żeby wkleić expression w miejsce kursora w edytorze.
+              </div>
+            </div>
+
+            <div style={styles.sideRail}>
+              <div style={styles.sideHeader}>
+                <div style={styles.sideTitle}>Library</div>
+                <div style={styles.tabs}>
+                  <button style={styles.tab(railTab === "examples")} onClick={() => setRailTab("examples")} type="button">
+                    Examples
+                  </button>
+                  <button style={styles.tab(railTab === "cheats")} onClick={() => setRailTab("cheats")} type="button">
+                    Cheats
+                  </button>
+                </div>
+              </div>
+
+              <div style={styles.sideBody}>
+                {railTab === "examples" ? (
+                  <>
+                    <input
+                      style={styles.input}
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      placeholder="Filter examples… (text, regex, panel)"
+                    />
+
+                    {filteredSnippets.map((g) => (
+                      <div key={g.group}>
+                        <div style={styles.groupTitle}>{g.group}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {g.items.map((it) => (
+                            <button
+                              key={it.id}
+                              style={styles.itemBtn}
+                              onClick={() => addSnippet(it.element)}
+                              type="button"
+                              title="Append to current JSON"
+                            >
+                              <div style={{ fontWeight: 750 }}>{it.label}</div>
+                              <div style={styles.itemMeta}>{it.id}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.smallRow}>
+                      <input
+                        style={styles.input}
+                        value={cheatFilter}
+                        onChange={(e) => setCheatFilter(e.target.value)}
+                        placeholder="Filter cheats… (iif, notempty, contains)"
+                      />
+                      <button style={styles.copyBtn} onClick={() => copy(cheatFilter || "")} type="button" title="Copy filter text">
+                        Copy
+                      </button>
+                    </div>
+
+                    {filteredCheats.map((g) => (
+                      <div key={g.group}>
+                        <div style={styles.groupTitle}>{g.group}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {g.items.map((it) => (
+                            <button
+                              key={it.label + it.text}
+                              style={styles.itemBtn}
+                              type="button"
+                              onClick={() => insertCheatAtCursor(it.text)}
+                              title="Insert at cursor in JSON editor"
+                            >
+                              <div style={{ fontWeight: 750 }}>{it.label}</div>
+                              <div style={styles.itemMeta}>{it.text}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.right}>
+          {!parseError ? <FormRenderer json={json} /> : <div style={styles.hint}>Fix JSON on the left to see rendered form.</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
