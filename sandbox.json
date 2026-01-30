@@ -75,6 +75,93 @@ const presets = [
   },
 ];
 
+const snippets = [
+  {
+    group: "Everything helpers",
+    items: [
+      {
+        id: "gate_bool",
+        label: "Gate: type=boolean (drives enableIf/visibleIf/requiredIf)",
+        element: { type: "boolean", name: "gate", title: "gate (toggle me)", defaultValue: false, labelTrue: "true", labelFalse: "false" },
+      },
+    ],
+  },
+  {
+    group: "Types",
+    items: [
+      { id: "text", label: "type=text", element: { type: "text", name: "lib_text", title: "type=text", placeholder: "Text" } },
+      { id: "email", label: "type=text (email)", element: { type: "text", name: "lib_email", title: "type=text (inputType=email)", inputType: "email", placeholder: "a@b.com" } },
+      { id: "date", label: "type=text (date)", element: { type: "text", name: "lib_date", title: "type=text (inputType=date)", inputType: "date" } },
+      { id: "comment", label: "type=comment", element: { type: "comment", name: "lib_comment", title: "type=comment", rows: 3 } },
+      { id: "boolean", label: "type=boolean", element: { type: "boolean", name: "lib_bool", title: "type=boolean", labelTrue: "Yes", labelFalse: "No" } },
+      { id: "radiogroup", label: "type=radiogroup", element: { type: "radiogroup", name: "lib_radio", title: "type=radiogroup", choices: ["A", "B", "C"] } },
+      { id: "dropdown", label: "type=dropdown", element: { type: "dropdown", name: "lib_dropdown", title: "type=dropdown", allowClear: true, choices: ["PL", "DE", "US"] } },
+      { id: "checkbox", label: "type=checkbox", element: { type: "checkbox", name: "lib_checkbox", title: "type=checkbox", choices: ["x", "y", "z"] } },
+      { id: "tagbox", label: "type=tagbox", element: { type: "tagbox", name: "lib_tagbox", title: "type=tagbox", allowMultiple: true, storeDataAsText: true, choices: ["react", "schema", "ui"] } },
+      { id: "file", label: "type=file", element: { type: "file", name: "lib_file", title: "type=file", acceptedTypes: ".png,.jpg,.pdf", maxSize: 2_000_000 } },
+      { id: "expression", label: "type=expression", element: { type: "expression", name: "lib_expr", title: "type=expression", expression: "'Hello ' + {lib_text}", displayStyle: "none" } },
+      {
+        id: "multipletext",
+        label: "type=multipletext",
+        element: {
+          type: "multipletext",
+          name: "lib_multipletext",
+          title: "type=multipletext",
+          items: [
+            { name: "a", title: "item a (text)", inputType: "text" },
+            { name: "b", title: "item b (number)", inputType: "number" },
+          ],
+        },
+      },
+      {
+        id: "panel",
+        label: "type=panel",
+        element: { type: "panel", name: "lib_panel", title: "type=panel", renderAs: "Card", elements: [{ type: "text", name: "lib_panel_child", title: "child: type=text" }] },
+      },
+    ],
+  },
+  {
+    group: "Validation",
+    items: [
+      {
+        id: "required",
+        label: "required + requiredErrorText",
+        element: { type: "text", name: "lib_required", title: "required", isRequired: true, requiredErrorText: "Required" },
+      },
+      {
+        id: "text_len",
+        label: "validator: text min/max",
+        element: { type: "text", name: "lib_text_len", title: "2-8 chars", validators: [{ type: "text", minLength: 2, maxLength: 8, text: "2-8 chars" }] },
+      },
+      {
+        id: "regex_digits",
+        label: "validator: regex (digits only)",
+        element: { type: "text", name: "lib_regex", title: "digits only", validators: [{ type: "regex", regex: "^[0-9]+$", text: "Digits only" }] },
+      },
+      {
+        id: "enableIf",
+        label: "enableIf gate=true",
+        element: { type: "text", name: "lib_enableIf", title: "enableIf {gate}=true", enableIf: "{gate} = true" },
+      },
+      {
+        id: "visibleIf",
+        label: "visibleIf gate=true",
+        element: { type: "comment", name: "lib_visibleIf", title: "visibleIf {gate}=true", visibleIf: "{gate} = true", rows: 2 },
+      },
+      {
+        id: "requiredIf",
+        label: "requiredIf gate=true",
+        element: { type: "text", name: "lib_requiredIf", title: "requiredIf {gate}=true", requiredIf: "{gate} = true" },
+      },
+      {
+        id: "readOnlyIf",
+        label: "readOnlyIf gate=true",
+        element: { type: "text", name: "lib_readOnlyIf", title: "readOnlyIf {gate}=true", readOnlyIf: "{gate} = true" },
+      },
+    ],
+  },
+];
+
 const safeStringify = (v) => {
   try {
     return JSON.stringify(v, null, 2);
@@ -91,14 +178,39 @@ const tryParse = (t) => {
   }
 };
 
+const clone = (x) => JSON.parse(JSON.stringify(x));
+
+const normalizeForInsert = (root) => {
+  const next = typeof root === "object" && root ? clone(root) : {};
+  if (Array.isArray(next.pages) && next.pages.length) {
+    const p0 = next.pages[0] ?? {};
+    next.pages = [{ ...(p0 || {}), elements: Array.isArray(p0.elements) ? p0.elements : [] }, ...next.pages.slice(1)];
+    return {
+      root: next,
+      getEls: () => next.pages[0].elements,
+      setEls: (els) => {
+        next.pages[0].elements = els;
+        return next;
+      },
+    };
+  }
+  next.elements = Array.isArray(next.elements) ? next.elements : [];
+  return {
+    root: next,
+    getEls: () => next.elements,
+    setEls: (els) => {
+      next.elements = els;
+      return next;
+    },
+  };
+};
+
 export default function Sandbox() {
   const [presetId, setPresetId] = useState(presets[0].id);
   const [text, setText] = useState(() => safeStringify(presets[0].json));
   const [json, setJson] = useState(presets[0].json);
   const [parseError, setParseError] = useState("");
   const [result, setResult] = useState({});
-  const [formErrors, setFormErrors] = useState(null);
-
   const textareaRef = useRef(null);
 
   const preset = useMemo(() => presets.find((p) => p.id === presetId) ?? presets[0], [presetId]);
@@ -108,7 +220,6 @@ export default function Sandbox() {
     setJson(preset.json);
     setParseError("");
     setResult({});
-    setFormErrors(null);
   }, [preset]);
 
   useEffect(() => {
@@ -125,6 +236,27 @@ export default function Sandbox() {
     if (!parsed.ok) return;
     setText(safeStringify(parsed.value));
     requestAnimationFrame(() => textareaRef.current?.focus?.());
+  };
+
+  const insert = (elementOrRoot) => {
+    const parsed = tryParse(text);
+    if (!parsed.ok) return;
+
+    const v = elementOrRoot;
+    const isRoot = v && typeof v === "object" && (v.pages || v.elements) && (v.title || v.checkErrorsMode || v.pages || v.elements);
+
+    if (isRoot) {
+      setText(safeStringify(v));
+      setJson(v);
+      setParseError("");
+      return;
+    }
+
+    const { root, getEls, setEls } = normalizeForInsert(parsed.value);
+    const next = setEls([...getEls(), clone(v)]);
+    setText(safeStringify(next));
+    setJson(next);
+    setParseError("");
   };
 
   return (
@@ -145,8 +277,8 @@ export default function Sandbox() {
         </button>
       </div>
 
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", minHeight: 0 }}>
-        {/* 1) JSON */}
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 320px 1fr 1fr", minHeight: 0 }}>
+        {/* 1) JSON string */}
         <div style={{ borderRight: "1px solid #ddd", padding: 10, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>JSON</div>
           <textarea
@@ -156,55 +288,46 @@ export default function Sandbox() {
             spellCheck={false}
             style={{ flex: 1, width: "100%", resize: "none" }}
           />
-          {parseError ? (
-            <div style={{ marginTop: 8, color: "#b00020", whiteSpace: "pre-wrap" }}>{parseError}</div>
-          ) : null}
+          {parseError ? <div style={{ marginTop: 8, color: "#b00020", whiteSpace: "pre-wrap" }}>{parseError}</div> : null}
         </div>
 
-        {/* 2) Render */}
+        {/* 2) Library */}
         <div style={{ borderRight: "1px solid #ddd", padding: 10, minHeight: 0, overflow: "auto" }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Render</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Library</div>
 
+          {snippets.map((g) => (
+            <div key={g.group} style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, opacity: 0.7, marginBottom: 8 }}>{g.group}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {g.items.map((it) => (
+                  <button key={it.id} onClick={() => insert(it.element)} style={{ textAlign: "left", padding: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: 12 }}>{it.label}</div>
+                    <div style={{ fontSize: 11, opacity: 0.6 }}>{it.id}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 3) Output React */}
+        <div style={{ borderRight: "1px solid #ddd", padding: 10, minHeight: 0, overflow: "auto" }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Output (React)</div>
           {!parseError ? (
             <FormRenderer
               json={json}
-              // jeśli FormRenderer wspiera callbacki - wynik pokaże się w 4. kolumnie;
-              // jeśli nie, to nic nie popsuje (nadmiarowe propsy będą zignorowane).
+              // jeśli wspiera callbacki - pokażemy wynik w 4 kolumnie
               onChange={(next) => setResult(next ?? {})}
               onResultChange={(next) => setResult(next ?? {})}
-              onErrorsChange={(errs) => setFormErrors(errs ?? null)}
             />
           ) : (
             <div>Fix JSON to render.</div>
           )}
         </div>
 
-        {/* 3) Notes */}
-        <div style={{ borderRight: "1px solid #ddd", padding: 10, minHeight: 0, overflow: "auto" }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Notes</div>
-          <div style={{ fontSize: 13, lineHeight: 1.35 }}>
-            <div style={{ marginBottom: 10 }}>
-              Preset <b>Everything</b> ma tylko <b>type=text</b> i <b>type=dropdown</b> + walidacje.
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              Preset <b>Types showcase</b> pokazuje wszystkie typy komponentów.
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              Edytuj JSON po lewej i obserwuj render oraz wynik po prawej.
-            </div>
-            <div style={{ fontSize: 12, color: "#666" }}>
-              Jeśli wynik w 4. kolumnie się nie zmienia, to znaczy że Twój <code>FormRenderer</code> nie emituje callbacków
-              (<code>onChange</code>/<code>onResultChange</code>). Wtedy trzeba dodać taki callback w implementacji.
-            </div>
-          </div>
-        </div>
-
-        {/* 4) Result */}
+        {/* 4) Output JSON */}
         <div style={{ padding: 10, minHeight: 0, overflow: "auto" }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Result</div>
-          {formErrors ? (
-            <div style={{ marginBottom: 8, color: "#b00020" }}>{safeStringify(formErrors)}</div>
-          ) : null}
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Output (JSON)</div>
           <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{safeStringify(result)}</pre>
         </div>
       </div>
