@@ -2,101 +2,139 @@
 
 Headless SurveyJS.
 
--   **JSON** = structure + logic
--   **React** = rendering
--   **renderAs** = layout
--   **x-props** = direct props for `wcs-styleguide`
+JSON = structure + logic\
+React = rendering\
+renderAs = layout\
+x-props = direct props for wcs-styleguide
 
 ------------------------------------------------------------------------
 
 ## Mental Model
 
-  Concept            Meaning
-  ------------------ -------------
-  Survey             Tree
-  Panel              Layout
-  visibleIf          Show / hide
-  enableIf           Disabled
-  readOnly           Read-only
-  contains           Arrays
-  calculatedValues   Computed
-  triggers           Auto logic
-  validators         Validation
+Survey → Tree\
+Panel → Layout container\
+visibleIf → Show / hide\
+enableIf → Disabled\
+readOnly → Read-only (NOT disabled)\
+contains → For arrays\
+calculatedValues → Computed state\
+triggers → Auto logic\
+validators → Validation rules
 
 ------------------------------------------------------------------------
 
 ## Supported Types
 
-  Type           Result
-  -------------- ------------
-  text           string
-  comment        string
-  boolean        boolean
-  file           file\[\]
-  radiogroup     string
-  dropdown       string
-  checkbox       string\[\]
-  tagbox         string\[\]
-  expression     computed
-  multipletext   object
-  panel          container
+text → string\
+comment → string (textarea)\
+boolean → boolean\
+file → file\[\]\
+radiogroup → string (single select)\
+dropdown → string (single select)\
+checkbox → string\[\] (multi select)\
+tagbox → string\[\] (multi + search)\
+expression → computed display\
+multipletext → object (grouped fields)\
+panel → container
 
 ------------------------------------------------------------------------
 
 ## Core Properties
 
-  Property                Purpose
-  ----------------------- -----------------------------
-  isRequired              Mandatory
-  requiredIf              Conditional required
-  visibleIf               Show / hide
-  enableIf                Disabled (false = disabled)
-  readOnly                Read-only (NOT disabled)
-  choices                 Static options
-  choicesFromExpression   Dynamic options
-  validators              Validation
-  x-props                 UI props
+isRequired → Mandatory\
+requiredIf → Conditional mandatory\
+visibleIf → Show / hide\
+enableIf → Disabled (false = disabled)\
+readOnly → Read-only (NOT disabled)\
+choices → Static options\
+choicesFromExpression → Dynamic options\
+validators → Validation rules\
+x-props → UI props (passed to wcs-styleguide)
 
 ------------------------------------------------------------------------
 
 ## Expression Rules
 
-Reference:
+Reference another field:
 
     {field}
 
 Operators:
 
-  Category   Operators
-  ---------- --------------------
-  Compare    = != \> \< \>= \<=
-  Logic      and, or, not
-  Array      contains
+Compare:
+
+    = != > < >= <=
+
+Logic:
+
+    and or not
+
+Array:
+
+    contains
 
 Rules:
 
--   string → use `=`
--   array → use `contains`
+-   string value → use `=`
+-   array value → use `contains`
 
 Example:
 
     {roles} contains 'admin'
+    {age} >= 18 and not {isMinor}
+
+------------------------------------------------------------------------
+
+## calculatedValues
+
+    {
+      "calculatedValues": [
+        { "name": "total", "expression": "{price} * {qty}" }
+      ]
+    }
+
+------------------------------------------------------------------------
+
+## triggers
+
+    {
+      "triggers": [
+        { "type": "setvalue", "expression": "{age}<18", "setToName": "minor", "setValue": true }
+      ]
+    }
+
+Types: setvalue\
+copyvalue\
+runexpression\
+skip
+
+------------------------------------------------------------------------
+
+## validators
+
+    "validators": [
+      { "type": "regex", "regex": "pattern" }
+    ]
+
+Supported: regex\
+expression\
+minValue / maxValue\
+minLength / maxLength\
+minCount / maxCount
 
 ------------------------------------------------------------------------
 
 ## Minimal Field Template
 
-``` json
-{
-  "type": "",
-  "name": "",
-  "isRequired": false,
-  "visibleIf": "",
-  "enableIf": "",
-  "readOnly": false,
-  "choices": [],
-  "choicesFromExpression": "",
-  "validators": [],
-  "x-props": {}
-}
-```
+    {
+      "type": "",
+      "name": "",
+      "isRequired": false,
+      "visibleIf": "",
+      "enableIf": "",
+      "readOnly": false,
+      "choices": [],
+      "choicesFromExpression": "",
+      "validators": [],
+      "x-props": {}
+    }
