@@ -1,12 +1,15 @@
-# SurveyJS (Headless) --- Copilot Guide
+# SurveyJS Headless --- Copilot Ultra Guide
 
-Headless SurveyJS. JSON = structure + logic. React = rendering.
-`renderAs` = layout. `x-props` = direct props to wcs-styleguide
-components.
+Headless SurveyJS.
+
+-   **JSON** = structure + logic\
+-   **React** = rendering\
+-   **renderAs** = layout\
+-   **x-props** = direct props for `wcs-styleguide` components
 
 ------------------------------------------------------------------------
 
-# Root
+## Root
 
 ``` json
 { "elements": [] }
@@ -14,21 +17,23 @@ components.
 
 ------------------------------------------------------------------------
 
-# Element Base
+## Base Field
 
 ``` json
 {
   "type": "text",
-  "name": "fieldName",
-  "title": "Label"
+  "name": "field"
 }
 ```
 
-Required keys: - type - name
+  Key    Required   Description
+  ------ ---------- -------------
+  type   yes        Field type
+  name   yes        Result key
 
 ------------------------------------------------------------------------
 
-# Panel
+## Panel (Layout)
 
 ``` json
 {
@@ -42,47 +47,55 @@ Panel = layout container.
 
 ------------------------------------------------------------------------
 
-# Types
+## Supported Types
 
-text → input\
-comment → textarea\
-boolean → true/false\
-file → upload\
-radiogroup → single (string)\
-dropdown → single (string)\
-checkbox → multi (array)\
-tagbox → multi searchable (array)\
-expression → computed display\
-multipletext → grouped inputs
-
-------------------------------------------------------------------------
-
-# Core Properties
-
-isRequired → mandatory\
-requiredIf → conditional required\
-visibleIf → show/hide\
-enableIf → disabled (false = disabled)\
-readOnly → read-only (NOT disabled)\
-choices → static options\
-choicesFromExpression → dynamic options from data\
-validators → validation rules
+  Type           Result       Description
+  -------------- ------------ -----------------------
+  text           string       Input
+  comment        string       Textarea
+  boolean        boolean      True / False
+  file           file\[\]     Upload
+  radiogroup     string       Single select
+  dropdown       string       Single select
+  checkbox       string\[\]   Multi select
+  tagbox         string\[\]   Multi select + search
+  expression     any          Computed display
+  multipletext   object       Grouped inputs
+  panel          ---          Container
 
 ------------------------------------------------------------------------
 
-# Expressions
+## Core Properties
+
+  Property                Meaning
+  ----------------------- -----------------------------
+  isRequired              Mandatory
+  requiredIf              Conditional mandatory
+  visibleIf               Show / hide
+  enableIf                Disabled (false = disabled)
+  readOnly                Read-only (NOT disabled)
+  choices                 Static options
+  choicesFromExpression   Dynamic options from data
+  validators              Validation rules
+  x-props                 UI props
+
+------------------------------------------------------------------------
+
+## Expressions
 
 Reference:
 
-    {fieldName}
+    {field}
 
 Operators:
 
-    = != > < >= <=
-    and or not
-    contains
+  Type      Operators
+  --------- --------------------
+  compare   = != \> \< \>= \<=
+  logic     and · or · not
+  array     contains
 
-Rules: - Single value → use `=` - Array value → use `contains`
+Rules: - **string** → use `=` - **array** → use `contains`
 
 Examples:
 
@@ -94,25 +107,21 @@ Examples:
 
 ------------------------------------------------------------------------
 
-# calculatedValues
+## calculatedValues
 
 Computed state.
 
 ``` json
 {
   "calculatedValues": [
-    {
-      "name": "total",
-      "expression": "{price} * {qty}",
-      "includeIntoResult": true
-    }
+    { "name": "total", "expression": "{price} * {qty}" }
   ]
 }
 ```
 
 ------------------------------------------------------------------------
 
-# Triggers
+## Triggers
 
 Auto actions.
 
@@ -122,18 +131,23 @@ Auto actions.
     {
       "type": "setvalue",
       "expression": "{age} < 18",
-      "setToName": "isMinor",
+      "setToName": "minor",
       "setValue": true
     }
   ]
 }
 ```
 
-Types: - setvalue - copyvalue - runexpression - skip
+  Type            Action
+  --------------- -----------------
+  setvalue        Set value
+  copyvalue       Copy value
+  runexpression   Run expression
+  skip            Skip to element
 
 ------------------------------------------------------------------------
 
-# Validators
+## Validators
 
 ``` json
 "validators": [
@@ -141,22 +155,27 @@ Types: - setvalue - copyvalue - runexpression - skip
 ]
 ```
 
-Supported: - regex - expression - minValue / maxValue - minLength /
-maxLength - minCount / maxCount
+  Category   Validators
+  ---------- ----------------------
+  text       regex, expression
+  number     minValue, maxValue
+  string     minLength, maxLength
+  array      minCount, maxCount
 
 ------------------------------------------------------------------------
 
-# x-props
+## x-props
 
 ``` json
 "x-props": { "size": "large" }
 ```
 
-Passed directly to wcs-styleguide. Ignored by SurveyJS logic.
+Passed **directly** to `wcs-styleguide`.\
+Ignored by SurveyJS logic.
 
 ------------------------------------------------------------------------
 
-# Minimal Field Template
+## Minimal Template
 
 ``` json
 {
@@ -175,14 +194,16 @@ Passed directly to wcs-styleguide. Ignored by SurveyJS logic.
 
 ------------------------------------------------------------------------
 
-# Mental Model
+## Mental Model
 
-Survey = tree\
-Panel = layout\
-visibleIf = show/hide\
-enableIf = disabled\
-readOnly ≠ disabled\
-contains = arrays\
-calculatedValues = computed\
-triggers = auto logic\
-validators = validation
+  Concept            Meaning
+  ------------------ -------------
+  Survey             Tree
+  Panel              Layout
+  visibleIf          Show / hide
+  enableIf           Disabled
+  readOnly           Read-only
+  contains           Arrays
+  calculatedValues   Computed
+  triggers           Auto logic
+  validators         Validation
