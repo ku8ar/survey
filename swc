@@ -1,0 +1,91 @@
+yarn remove \
+  @babel/core \
+  @babel/preset-env \
+  @babel/preset-react \
+  @babel/plugin-transform-runtime \
+  @babel/runtime \
+  babel-jest
+
+  yarn add -D swc-loader @swc/core @swc/jest
+
+
+
+
+  const singleSpaDefaults = require('webpack-config-single-spa-react');
+
+const toArray = (v) => (Array.isArray(v) ? v : [v]).filter(Boolean);
+
+module.exports = (env, argv) => {
+  const config = singleSpaDefaults({
+    orgName: 'org',
+    projectName: 'app',
+    webpackConfigEnv: env,
+    argv,
+  });
+
+  const rules = toArray(config.module.rules).flatMap((r) =>
+    r.oneOf ? r.oneOf : [r]
+  );
+
+  const withoutBabel = rules.filter((r) => {
+    const uses = toArray(r.use).map((u) =>
+      typeof u === 'string' ? u : u?.loader
+    );
+    return r.loader !== 'babel-loader' &&
+      !uses.some((l) => l?.includes('babel-loader'));
+  });
+
+  const swcRule = {
+    test: /\.[jt]sx?$/,
+    exclude: /node_modules/,
+    use: {
+      loader: 'swc-loader',
+      options: {
+        jsc: {
+          parser: {
+            syntax: 'ecmascript',
+            jsx: true,
+          },
+          transform: {
+            react: {
+              runtime: 'automatic',
+            },
+          },
+        },
+      },
+    },
+  };
+
+  config.module.rules = [
+    { oneOf: [swcRule, ...withoutBabel] },
+  ];
+
+  return config;
+};
+
+
+
+
+
+
+module.exports = {
+  testEnvironment: 'jsdom',
+  transform: {
+    '^.+\\.[jt]sx?$': ['@swc/jest', {
+      jsc: {
+        parser: {
+          syntax: 'ecmascript',
+          jsx: true,
+        },
+        transform: {
+          react: {
+            runtime: 'automatic',
+          },
+        },
+      },
+      module: {
+        type: 'commonjs',
+      },
+    }],
+  },
+};
